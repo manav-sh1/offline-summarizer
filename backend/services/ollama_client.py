@@ -11,11 +11,11 @@ class OllamaClient:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, model: str | None = None) -> str:
         response = requests.post(
             f"{self._settings.ollama_base_url}/api/generate",
             json={
-                "model": self._settings.ollama_model,
+                "model": model or self._settings.ollama_model,
                 "prompt": prompt,
                 "stream": False,
                 "format": "json",

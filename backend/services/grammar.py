@@ -13,15 +13,16 @@ class GrammarService:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
         self._ollama = OllamaClient(settings)
+        self._model = settings.ollama_grammar_model or settings.ollama_model
 
     def check(self, text: str) -> GrammarResponse:
         try:
-            payload = self._ollama.parse_json(self._ollama.generate(self._build_prompt(text)))
+            payload = self._ollama.parse_json(self._ollama.generate(self._build_prompt(text), model=self._model))
             raw_issues = payload.get("issues", [])
             issues = [self._to_suggestion(text, item) for item in raw_issues]
             return GrammarResponse(
                 issues=[issue for issue in issues if issue is not None],
-                provider=f"ollama:{self._settings.ollama_model}",
+                provider=f"ollama:{self._model}",
             )
         except (requests.RequestException, ValueError, TypeError, KeyError):
             return GrammarResponse(issues=[], provider="unavailable")

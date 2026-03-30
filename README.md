@@ -50,7 +50,7 @@ pip install -r requirements.txt
 
 ```bash
 ollama serve
-ollama pull mistral
+ollama pull qwen2.5:1.5b
 ```
 
 4. Optional configuration:
@@ -96,10 +96,15 @@ Available settings are defined in `config.py`.
 - `API_BASE_PATH`
 - `OLLAMA_BASE_URL`
 - `OLLAMA_MODEL`
+- `OLLAMA_SUMMARY_MODEL`
+- `OLLAMA_KEYWORDS_MODEL`
+- `OLLAMA_GRAMMAR_MODEL`
 - `OLLAMA_TIMEOUT_SECONDS`
 - `FRONTEND_API_URL`
 - `REQUEST_TIMEOUT_SECONDS`
 - `MAX_KEYWORDS`
+
+Task-specific model overrides are optional. If unset, each feature falls back to `OLLAMA_MODEL`.
 
 ## Runtime Notes
 

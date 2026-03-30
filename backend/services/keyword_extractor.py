@@ -11,11 +11,14 @@ class KeywordExtractorService:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
         self._ollama = OllamaClient(settings)
+        self._model = settings.ollama_keywords_model or settings.ollama_model
 
     def extract(self, text: str, top_k: int) -> KeywordResponse:
         keyword_limit = min(top_k, self._settings.max_keywords)
         try:
-            payload = self._ollama.parse_json(self._ollama.generate(self._build_prompt(text, keyword_limit)))
+            payload = self._ollama.parse_json(
+                self._ollama.generate(self._build_prompt(text, keyword_limit), model=self._model)
+            )
             keywords = [
                 str(keyword).strip()
                 for keyword in payload.get("keywords", [])

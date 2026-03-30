@@ -15,6 +15,7 @@ class SummarizerService:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
         self._ollama = OllamaClient(settings)
+        self._model = settings.ollama_summary_model or settings.ollama_model
         self._length_map = {
             "short": "2-3 sentences",
             "medium": "3-5 sentences",
@@ -24,13 +25,13 @@ class SummarizerService:
     def summarize(self, text: str, length: str, query: str | None = None) -> SummarizeResponse:
         try:
             summary = self._summarize_with_ollama(text, length, query)
-            return SummarizeResponse(summary=summary, provider=f"ollama:{self._settings.ollama_model}")
+            return SummarizeResponse(summary=summary, provider=f"ollama:{self._model}")
         except requests.RequestException:
             return SummarizeResponse(summary=self._extractive_summary(text, length), provider="extractive-fallback")
 
     def _summarize_with_ollama(self, text: str, length: str, query: str | None) -> str:
         prompt = self._build_prompt(text, length, query)
-        payload = self._ollama.parse_json(self._ollama.generate(prompt))
+        payload = self._ollama.parse_json(self._ollama.generate(prompt, model=self._model))
         summary = str(payload.get("summary", "")).strip()
         if not summary:
             raise requests.RequestException("Empty summary from Ollama.")
