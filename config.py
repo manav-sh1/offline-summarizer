@@ -16,7 +16,6 @@ class Settings(BaseSettings):
     frontend_api_url: str = Field(default="http://127.0.0.1:5000/api/v1", alias="FRONTEND_API_URL")
     request_timeout_seconds: int = Field(default=120, alias="REQUEST_TIMEOUT_SECONDS")
     max_keywords: int = Field(default=10, alias="MAX_KEYWORDS")
-    grammar_language: str = Field(default="en-US", alias="GRAMMAR_LANGUAGE")
 
     model_config = SettingsConfigDict(
         env_file=".env",

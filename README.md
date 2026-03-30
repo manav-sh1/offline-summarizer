@@ -35,7 +35,7 @@ offline-summarizer/
 - Versioned API routes under `/api/v1`
 - One central application entry point
 - Shared environment-based configuration
-- Graceful degradation if Ollama or LanguageTool is not available
+- Graceful degradation if Ollama is not available
 
 ## Setup
 
@@ -46,7 +46,7 @@ offline-summarizer/
 pip install -r requirements.txt
 ```
 
-3. Optional but recommended for LLM summaries:
+3. Optional but required for full LLM-powered summaries, keywords, and grammar analysis:
 
 ```bash
 ollama serve
@@ -88,7 +88,7 @@ http://127.0.0.1:5000/docs
 
 ## Environment Variables
 
-Available settings are defined in `textforge/config.py`.
+Available settings are defined in `config.py`.
 
 - `APP_ENV`
 - `API_HOST`
@@ -100,10 +100,9 @@ Available settings are defined in `textforge/config.py`.
 - `FRONTEND_API_URL`
 - `REQUEST_TIMEOUT_SECONDS`
 - `MAX_KEYWORDS`
-- `GRAMMAR_LANGUAGE`
 
 ## Runtime Notes
 
 - Summaries use Ollama when reachable and fall back to a simple extractive summary when it is not.
-- Grammar checks return an empty list with provider `unavailable` when LanguageTool cannot initialize.
+- Keyword extraction and grammar checking are also LLM-backed and return empty results with provider `unavailable` if Ollama is not reachable or returns invalid JSON.
 - The UI talks only to the local backend and does not contain business logic.

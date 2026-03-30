@@ -5,6 +5,7 @@ import re
 import requests
 
 from backend.schemas.text import SummarizeResponse
+from backend.services.ollama_client import OllamaClient
 from config import Settings
 
 
@@ -13,6 +14,7 @@ class SummarizerService:
 
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
+        self._ollama = OllamaClient(settings)
         self._length_map = {
             "short": "2-3 sentences",
             "medium": "3-5 sentences",
@@ -28,26 +30,18 @@ class SummarizerService:
 
     def _summarize_with_ollama(self, text: str, length: str, query: str | None) -> str:
         prompt = self._build_prompt(text, length, query)
-        response = requests.post(
-            f"{self._settings.ollama_base_url}/api/generate",
-            json={
-                "model": self._settings.ollama_model,
-                "prompt": prompt,
-                "stream": False,
-            },
-            timeout=self._settings.ollama_timeout_seconds,
-        )
-        response.raise_for_status()
-        payload = response.json()
-        generated = payload.get("response", "").strip()
-        if not generated:
-            raise requests.RequestException("Empty response from Ollama.")
-        return generated
+        payload = self._ollama.parse_json(self._ollama.generate(prompt))
+        summary = str(payload.get("summary", "")).strip()
+        if not summary:
+            raise requests.RequestException("Empty summary from Ollama.")
+        return summary
 
     def _build_prompt(self, text: str, length: str, query: str | None) -> str:
         focus = f"Focus specifically on: {query}\n" if query else ""
         return (
             "You are a concise offline summarization assistant.\n"
+            "Return strict JSON with this shape: "
+            '{"summary": "<text>"}.\n'
             f"Write a {self._length_map[length]} summary.\n"
             "Preserve factual meaning and avoid fluff.\n"
             f"{focus}"
