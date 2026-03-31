@@ -79,3 +79,6 @@ def _require_text(text: str) -> None:
     if not text or len(text.strip()) < 20:
         st.warning("Please enter at least 20 characters of text.")
         st.stop()
+
+
+main()
