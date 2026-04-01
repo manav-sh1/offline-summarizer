@@ -5,6 +5,10 @@ import json
 import requests
 
 from config import Settings
+from logging_config import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class OllamaClient:
@@ -12,10 +16,12 @@ class OllamaClient:
         self._settings = settings
 
     def generate(self, prompt: str, model: str | None = None) -> str:
+        resolved_model = model or self._settings.ollama_model
+        logger.info("Sending generation request to Ollama model=%s", resolved_model)
         response = requests.post(
             f"{self._settings.ollama_base_url}/api/generate",
             json={
-                "model": model or self._settings.ollama_model,
+                "model": resolved_model,
                 "prompt": prompt,
                 "stream": False,
                 "format": "json",
@@ -27,8 +33,10 @@ class OllamaClient:
         generated = payload.get("response", "").strip()
         if not generated:
             raise requests.RequestException("Empty response from Ollama.")
+        logger.info("Received generation response from Ollama model=%s", resolved_model)
         return generated
 
     @staticmethod
     def parse_json(content: str) -> dict:
+        logger.info("Parsing Ollama JSON response")
         return json.loads(content)

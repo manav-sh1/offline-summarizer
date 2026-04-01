@@ -7,6 +7,10 @@ import requests
 from backend.schemas.text import GrammarResponse, GrammarSuggestion
 from backend.services.ollama_client import OllamaClient
 from config import Settings
+from logging_config import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class GrammarService:
@@ -16,15 +20,18 @@ class GrammarService:
         self._model = settings.ollama_grammar_model or settings.ollama_model
 
     def check(self, text: str) -> GrammarResponse:
+        logger.info("Grammar service invoked")
         try:
             payload = self._ollama.parse_json(self._ollama.generate(self._build_prompt(text), model=self._model))
             raw_issues = payload.get("issues", [])
             issues = [self._to_suggestion(text, item) for item in raw_issues]
+            logger.info("Grammar service completed with %s issues", len([issue for issue in issues if issue is not None]))
             return GrammarResponse(
                 issues=[issue for issue in issues if issue is not None],
                 provider=f"ollama:{self._model}",
             )
-        except (requests.RequestException, ValueError, TypeError, KeyError):
+        except (requests.RequestException, ValueError, TypeError, KeyError) as exc:
+            logger.warning("Grammar check failed, returning unavailable provider: %s", exc)
             return GrammarResponse(issues=[], provider="unavailable")
 
     def _build_prompt(self, text: str) -> str:
@@ -43,10 +50,12 @@ class GrammarService:
     def _to_suggestion(self, source_text: str, item: dict) -> GrammarSuggestion | None:
         error_text = str(item.get("error_text", "")).strip()
         if not error_text:
+            logger.debug("Skipping grammar issue without error_text")
             return None
 
         match = re.search(re.escape(error_text), source_text)
         if match is None:
+            logger.debug("Skipping grammar issue because source match was not found")
             return None
 
         message = str(item.get("message", "Potential grammar issue")).strip() or "Potential grammar issue"

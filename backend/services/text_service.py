@@ -9,6 +9,10 @@ from backend.schemas.text import (
 from backend.services.grammar import GrammarService
 from backend.services.keyword_extractor import KeywordExtractorService
 from backend.services.summarizer import SummarizerService
+from logging_config import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class TextService:
@@ -23,10 +27,13 @@ class TextService:
         self._grammar_checker = grammar_checker
 
     def summarize(self, payload: SummarizeRequest) -> SummarizeResponse:
+        logger.info("Dispatching summarize request")
         return self._summarizer.summarize(payload.text, payload.length, payload.query)
 
     def extract_keywords(self, payload: KeywordRequest) -> KeywordResponse:
+        logger.info("Dispatching keyword extraction request")
         return self._keyword_extractor.extract(payload.text, payload.top_k)
 
     def check_grammar(self, payload: GrammarRequest) -> GrammarResponse:
+        logger.info("Dispatching grammar check request")
         return self._grammar_checker.check(payload.text)

@@ -3,6 +3,10 @@ from __future__ import annotations
 import requests
 
 from config import get_settings
+from logging_config import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class TextForgeApiClient:
@@ -10,6 +14,7 @@ class TextForgeApiClient:
         settings = get_settings()
         self._base_url = settings.frontend_api_url.rstrip("/")
         self._timeout = settings.request_timeout_seconds
+        logger.info("Initialized API client for %s", self._base_url)
 
     def health(self) -> dict:
         return self._request("GET", "/health")
@@ -28,6 +33,7 @@ class TextForgeApiClient:
         return self._request("POST", "/text/grammar", json={"text": text})
 
     def _request(self, method: str, path: str, json: dict | None = None) -> dict:
+        logger.info("Sending %s request to %s", method, path)
         response = requests.request(
             method=method,
             url=f"{self._base_url}{path}",
@@ -35,4 +41,5 @@ class TextForgeApiClient:
             timeout=self._timeout,
         )
         response.raise_for_status()
+        logger.info("Received successful %s response from %s", method, path)
         return response.json()

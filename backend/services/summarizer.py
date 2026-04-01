@@ -7,6 +7,10 @@ import requests
 from backend.schemas.text import SummarizeResponse
 from backend.services.ollama_client import OllamaClient
 from config import Settings
+from logging_config import get_logger
+
+
+logger = get_logger(__name__)
 
 
 class SummarizerService:
@@ -23,13 +27,17 @@ class SummarizerService:
         }
 
     def summarize(self, text: str, length: str, query: str | None = None) -> SummarizeResponse:
+        logger.info("Summarizer invoked with length=%s query_present=%s", length, bool(query))
         try:
             summary = self._summarize_with_ollama(text, length, query)
+            logger.info("Summarizer completed with Ollama model=%s", self._model)
             return SummarizeResponse(summary=summary, provider=f"ollama:{self._model}")
-        except requests.RequestException:
+        except requests.RequestException as exc:
+            logger.warning("Ollama summarize failed, falling back to extractive summary: %s", exc)
             return SummarizeResponse(summary=self._extractive_summary(text, length), provider="extractive-fallback")
 
     def _summarize_with_ollama(self, text: str, length: str, query: str | None) -> str:
+        logger.info("Requesting summary from Ollama")
         prompt = self._build_prompt(text, length, query)
         payload = self._ollama.parse_json(self._ollama.generate(prompt, model=self._model))
         summary = str(payload.get("summary", "")).strip()
@@ -51,6 +59,7 @@ class SummarizerService:
         )
 
     def _extractive_summary(self, text: str, length: str) -> str:
+        logger.info("Generating extractive fallback summary")
         sentences = [part.strip() for part in self._sentence_pattern.split(text.strip()) if part.strip()]
         sentence_count = {"short": 2, "medium": 4, "long": 6}[length]
         return " ".join(sentences[:sentence_count]) if sentences else text.strip()
