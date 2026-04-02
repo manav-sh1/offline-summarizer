@@ -68,20 +68,24 @@ def main() -> None:
         _require_text(text)
         try:
             response = client.grammar(text=text)
+            corrected = response["corrected_text"]
+            has_changes = corrected.strip() != text.strip()
             
             # Display corrected text prominently
-            render_result("Corrected Text", response["corrected_text"])
+            render_result("Corrected Text", corrected)
             
             if response["issues"]:
-                with st.expander("Detailed Issues"):
+                with st.expander("Specific Corrections"):
                     for issue in response["issues"]:
                         st.markdown(
                             f"- **{issue['message']}**\n"
                             f"Context: `{issue['context']}`\n"
                             f"Suggestions: {', '.join(issue['replacements']) or 'No suggestions'}"
                         )
-            else:
+            elif not has_changes:
                 st.success("No grammar issues detected!")
+            else:
+                st.info("The text has been refined.")
                 
             st.caption(f"Provider: {response['provider']}")
         except requests.RequestException as exc:
