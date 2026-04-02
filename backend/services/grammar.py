@@ -21,104 +21,118 @@ class GrammarService:
         self._model = settings.ollama_grammar_model or settings.ollama_model
 
     @alru_cache(maxsize=128)
+    async def _check_chunk(self, chunk: str) -> dict:
+        """Internal method to check an individual chunk with its own cache."""
+        try:
+            # Escape triple quotes within the chunk to prevent simple prompt injection bypass
+            safe_chunk = chunk.replace('"""', '\\"\\"\\"')
+            delimited_text = f'"""\n{safe_chunk}\n"""'
+            
+            prompt = (
+                "You are an elite grammar and spell-checking assistant.\n"
+                "Analyze the text provided within the triple quotes for grammatical, spelling, and usage errors.\n"
+                "Return valid JSON only, using this exact structure:\n"
+                "{\n"
+                '  "corrected_text": "<fully corrected version of the provided text>",\n'
+                '  "issues": [\n'
+                '    {\n'
+                '      "message": "<description of the error>",\n'
+                '      "replacements": ["<suggestion1>", "<suggestion2>"],\n'
+                '      "error_text": "<EXACT faulty substring from the original text>",\n'
+                '      "context": "<short snippet of the original surrounding text containing the error>"\n'
+                '    }\n'
+                '  ]\n'
+                "}\n"
+                "Ensure that 'error_text' appears verbatim in the original text.\n"
+                "Do not include conversational preambles or markdown markers.\n"
+                f"Source Text:\n{delimited_text}"
+            )
+            
+            raw_response = await self._ollama.generate(prompt, model=self._model)
+            return self._ollama.parse_json(raw_response)
+        except Exception as exc:
+            logger.error("Chunk grammar check failed: %s", exc)
+            return {"corrected_text": chunk, "issues": []}
+
     async def check(self, text: str) -> GrammarResponse:
         """
-        Analyzes the provided text for grammar and spelling issues.
-        
-        Args:
-            text: The input text to check.
-            
-        Returns:
-            A GrammarResponse containing the highlighted issues and a corrected version.
+        Analyzes the text for grammar issues using paragraph-level chunking for efficient caching.
         """
-        logger.info("Grammar service invoked with text length=%s", len(text))
-        try:
-            raw_response = await self._ollama.generate(self._build_prompt(text), model=self._model)
-            payload = self._ollama.parse_json(raw_response)
-            
-            # Extract and filter individual issues
-            raw_issues = payload.get("issues", [])
-            issues = [
-                issue for item in raw_issues 
-                if (issue := self._to_suggestion(text, item)) is not None
-            ]
-            
-            # Extract fully corrected text, fallback to original if missing
-            corrected_text = str(payload.get("corrected_text", text)).strip()
-            
-            logger.info("Grammar check completed with %s issues highlighted", len(issues))
-            return GrammarResponse(
-                issues=issues,
-                corrected_text=corrected_text or text,
-                provider=f"ollama:{self._model}",
-            )
-        except (httpx.HTTPError, ValueError, TypeError, KeyError) as exc:
-            logger.warning("Grammar check failed, falling back to original: %s", exc)
-            return GrammarResponse(issues=[], corrected_text=text, provider="unavailable")
+        if not text.strip():
+            return GrammarResponse(issues=[], corrected_text=text, provider=f"ollama:{self._model}")
 
-    def _build_prompt(self, text: str) -> str:
-        """Constructs the prompt for the grammar check task."""
-        # Wrap user input in delimiters to mitigate simple prompt injection
-        delimited_text = f"\"\"\"\n{text}\n\"\"\""
-        return (
-            "You are a grammar and spell-checking assistant.\n"
-            "Analyze the text delimited by triple quotes for errors and provide a fully corrected version.\n"
-            "Return strict JSON with this shape:\n"
-            "{\n"
-            '  "corrected_text": "<fully_corrected_para>",\n'
-            '  "issues": [{\n'
-            '    "message": "<short_description_of_error>",\n'
-            '    "replacements": ["<suggestion1>", "<suggestion2>"],\n'
-            '    "error_text": "<exact_original_error_from_text>",\n'
-            '    "context": "<short_snippet_with_error>"\n'
-            '  }]\n'
-            "}\n"
-            "Only include real grammar, spelling, punctuation, or usage issues.\n"
-            "Ensure the corrected_text is consistent with the suggestions in the issues array.\n"
-            f"Text:\n{delimited_text}"
+        logger.info("Grammar service invoked (len=%s)", len(text))
+        
+        # Split text into paragraphs to optimize caching and avoid LLM token limits on large docs
+        paragraphs = text.splitlines(keepends=True)
+        
+        all_issues = []
+        all_corrected_chunks = []
+        current_offset = 0
+        
+        for chunk in paragraphs:
+            trimmed = chunk.strip()
+            if not trimmed:
+                all_corrected_chunks.append(chunk)
+                current_offset += len(chunk)
+                continue
+
+            payload = await self._check_chunk(trimmed)
+            
+            # Map issues back to their absolute offset in the complete original document
+            chunk_raw_issues = payload.get("issues", [])
+            for item in chunk_raw_issues:
+                issue = self._to_suggestion(chunk, item, base_offset=current_offset)
+                if issue:
+                    all_issues.append(issue)
+            
+            # Reconstruct text while preserving original newline structure
+            corrected_chunk = payload.get("corrected_text", trimmed)
+            suffix = chunk[len(trimmed):]
+            all_corrected_chunks.append(corrected_chunk + suffix)
+            
+            current_offset += len(chunk)
+
+        return GrammarResponse(
+            issues=all_issues,
+            corrected_text="".join(all_corrected_chunks),
+            provider=f"ollama:{self._model}",
         )
 
-    def _to_suggestion(self, source_text: str, item: dict) -> GrammarSuggestion | None:
-        """Parses a raw issue dictionary into a GrammarSuggestion object with accurate offsets."""
+    def _to_suggestion(self, source_text: str, item: dict, base_offset: int = 0) -> GrammarSuggestion | None:
+        """Parses a raw issue dictionary into a GrammarSuggestion object with improved offset reliability."""
         error_text = str(item.get("error_text", "")).strip()
         context = str(item.get("context", "")).strip()
         if not error_text:
             return None
 
-        # Determine localized offset using context to avoid false positives with repeating words.
+        # Determine localized offset using context window to avoid false positives with common repeating words.
         start_index = -1
         if context and error_text in context:
-            # First, find the context string in the full text
             ctx_match = re.search(re.escape(context), source_text)
             if ctx_match:
-                # Then, find the specific error substring within that context
                 rel_match = re.search(re.escape(error_text), context)
                 if rel_match:
                     start_index = ctx_match.start() + rel_match.start()
         
-        # Fallback to simple search if context is missing or not found
+        # Fallback to simple search if context is not present or non-matching
         if start_index < 0:
             match = re.search(re.escape(error_text), source_text)
             if match is None:
-                logger.debug(
-                    "Skipping grammar match failure for: %s", 
-                    error_text
-                )
                 return None
             start_index = match.start()
 
-        message = str(item.get("message", "Potential grammar issue")).strip() or "Potential grammar issue"
-        replacements = [str(value).strip() for value in item.get("replacements", []) if str(value).strip()][:5]
+        message = str(item.get("message", "Potential grammar issue")).strip()
+        replacements = [str(r).strip() for r in item.get("replacements", []) if str(r).strip()][:5]
         
-        # Ensure context is present for the UI to display
         display_context = context or source_text[
             max(0, start_index - 30): start_index + len(error_text) + 30
         ]
 
         return GrammarSuggestion(
-            message=message,
+            message=message or "Potential grammar issue",
             replacements=replacements,
-            offset=start_index,
+            offset=base_offset + start_index,
             error_length=len(error_text),
             context=display_context,
         )
