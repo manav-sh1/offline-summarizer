@@ -53,6 +53,13 @@ class DocumentParserService:
             # Rough estimate of pages for DOCX
             estimated_pages = max(1, len(text) // 3000)
             
+            if estimated_pages > self.MAX_PAGES:
+                logger.warning(f"DOCX too long: estimated {estimated_pages} pages. Limit is {self.MAX_PAGES}.")
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"DOCX exceeds the {self.MAX_PAGES} page limit (estimated {estimated_pages})."
+                )
+            
             return text, estimated_pages
         except Exception as e:
             logger.error(f"Error parsing DOCX: {str(e)}")

@@ -62,8 +62,10 @@ class SummarizerService:
 
     def _build_prompt(self, text: str, length: str, query: str | None) -> str:
         # Wrap user input in delimiters to mitigate simple prompt injection
-        delimited_text = f"\"\"\"\n{text}\n\"\"\""
-        focus = f"Focus specifically on the query: {query}\n" if query else ""
+        safe_text = text.replace('"""', '\\"\\"\\"')
+        safe_query = query.replace('"""', '\\"\\"\\"') if query else ""
+        delimited_text = f"\"\"\"\n{safe_text}\n\"\"\""
+        focus = f"Focus specifically on the query: {safe_query}\n" if query else ""
         return (
             "You are a concise offline summarization assistant.\n"
             "Summarize the text delimited by triple quotes.\n"

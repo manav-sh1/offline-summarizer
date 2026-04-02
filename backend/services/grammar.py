@@ -82,7 +82,12 @@ class GrammarService:
             
             # Map issues back to their absolute offset in the complete original document
             chunk_raw_issues = payload.get("issues", [])
+            if not isinstance(chunk_raw_issues, list):
+                chunk_raw_issues = []
+                
             for item in chunk_raw_issues:
+                if not isinstance(item, dict):
+                    continue
                 message = str(item.get("message", "")).lower()
                 # Prune common LLM hallucinations for "no errors"
                 if any(x in message for x in ["no errors", "no grammatical", "no mistakes", "correct as is"]):

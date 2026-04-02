@@ -36,9 +36,13 @@ class KeywordExtractorService:
         try:
             raw_response = await self._ollama.generate(self._build_prompt(text, keyword_limit), model=self._model)
             payload = self._ollama.parse_json(raw_response)
+            raw_keywords = payload.get("keywords", [])
+            if not isinstance(raw_keywords, list):
+                raw_keywords = []
+                
             keywords = [
                 str(keyword).strip()
-                for keyword in payload.get("keywords", [])
+                for keyword in raw_keywords
                 if str(keyword).strip()
             ][:keyword_limit]
             logger.info("Keyword extractor completed with %s keywords", len(keywords))
@@ -50,7 +54,8 @@ class KeywordExtractorService:
     def _build_prompt(self, text: str, top_k: int) -> str:
         """Constructs the prompt for the keyword extraction task."""
         # Wrap user input in delimiters to mitigate simple prompt injection
-        delimited_text = f"\"\"\"\n{text}\n\"\"\""
+        safe_text = text.replace('"""', '\\"\\"\\"')
+        delimited_text = f"\"\"\"\n{safe_text}\n\"\"\""
         return (
             "You are a keyword extraction assistant.\n"
             "Analyze the text delimited by triple quotes for key topics.\n"
