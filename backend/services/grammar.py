@@ -44,7 +44,8 @@ class GrammarService:
                 '  ]\n'
                 "}\n"
                 "Ensure that 'error_text' appears verbatim in the original text.\n"
-                "Do not include conversational preambles or markdown markers.\n"
+                "If there are NO errors, return an empty array [] for the 'issues' field.\n"
+                "Do NOT include conversational preambles, markdown markers, or 'no error' messages in the 'issues' array.\n"
                 f"Source Text:\n{delimited_text}"
             )
             
@@ -82,6 +83,11 @@ class GrammarService:
             # Map issues back to their absolute offset in the complete original document
             chunk_raw_issues = payload.get("issues", [])
             for item in chunk_raw_issues:
+                message = str(item.get("message", "")).lower()
+                # Prune common LLM hallucinations for "no errors"
+                if any(x in message for x in ["no errors", "no grammatical", "no mistakes", "correct as is"]):
+                    continue
+                    
                 issue = self._to_suggestion(chunk, item, base_offset=current_offset)
                 if issue:
                     all_issues.append(issue)
