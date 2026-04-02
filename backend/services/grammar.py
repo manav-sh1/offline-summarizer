@@ -43,9 +43,11 @@ class GrammarService:
             return GrammarResponse(issues=[], corrected_text=text, provider="unavailable")
 
     def _build_prompt(self, text: str) -> str:
+        # Wrap user input in delimiters to mitigate simple prompt injection
+        delimited_text = f"\"\"\"\n{text}\n\"\"\""
         return (
             "You are a grammar and spell-checking assistant.\n"
-            "Analyze the provided text for errors and provide a fully corrected version.\n"
+            "Analyze the text delimited by triple quotes for errors and provide a fully corrected version.\n"
             "Return strict JSON with this shape:\n"
             "{\n"
             '  "corrected_text": "<fully_corrected_para>",\n'
@@ -58,27 +60,44 @@ class GrammarService:
             "}\n"
             "Only include real grammar, spelling, punctuation, or usage issues.\n"
             "Ensure the corrected_text is consistent with the suggestions in the issues array.\n"
-            f"Text:\n{text}"
+            f"Text:\n{delimited_text}"
         )
 
     def _to_suggestion(self, source_text: str, item: dict) -> GrammarSuggestion | None:
         error_text = str(item.get("error_text", "")).strip()
+        context = str(item.get("context", "")).strip()
         if not error_text:
-            logger.debug("Skipping grammar issue without error_text")
             return None
 
-        match = re.search(re.escape(error_text), source_text)
-        if match is None:
-            logger.debug("Skipping grammar issue because source match was not found")
-            return None
+        # Determine localized offset using context to avoid false positives with repeating words.
+        start_index = -1
+        if context and error_text in context:
+            # First, find the context string in the full text
+            ctx_match = re.search(re.escape(context), source_text)
+            if ctx_match:
+                # Then, find the specific error substring within that context
+                rel_match = re.search(re.escape(error_text), context)
+                if rel_match:
+                    start_index = ctx_match.start() + rel_match.start()
+        
+        # Fallback to simple search if context is missing or not found
+        if start_index < 0:
+            match = re.search(re.escape(error_text), source_text)
+            if match is None:
+                logger.debug("Skipping grammar issue because source match was not found for: %s", error_text)
+                return None
+            start_index = match.start()
 
         message = str(item.get("message", "Potential grammar issue")).strip() or "Potential grammar issue"
         replacements = [str(value).strip() for value in item.get("replacements", []) if str(value).strip()][:5]
-        context = str(item.get("context", "")).strip() or source_text[max(0, match.start() - 20): match.end() + 20]
+        
+        # Ensure context is present for the UI to display
+        display_context = context or source_text[max(0, start_index - 30): start_index + len(error_text) + 30]
+
         return GrammarSuggestion(
             message=message,
             replacements=replacements,
-            offset=match.start(),
+            offset=start_index,
             error_length=len(error_text),
-            context=context,
+            context=display_context,
         )

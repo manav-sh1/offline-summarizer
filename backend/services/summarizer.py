@@ -51,16 +51,18 @@ class SummarizerService:
         return summary
 
     def _build_prompt(self, text: str, length: str, query: str | None) -> str:
-        focus = f"Focus specifically on: {query}\n" if query else ""
+        # Wrap user input in delimiters to mitigate simple prompt injection
+        delimited_text = f"\"\"\"\n{text}\n\"\"\""
+        focus = f"Focus specifically on the query: {query}\n" if query else ""
         return (
             "You are a concise offline summarization assistant.\n"
-            "Return strict JSON with this shape: "
+            "Summarize the text delimited by triple quotes.\n"
+            "Return strict JSON with this exact shape: "
             '{"summary": "<text>"}.\n'
             f"Write a {self._length_map[length]} summary.\n"
             "Preserve factual meaning and avoid fluff.\n"
             f"{focus}"
-            "Text:\n"
-            f"{text}"
+            f"Text:\n{delimited_text}"
         )
 
     def _extractive_summary(self, text: str, length: str) -> str:

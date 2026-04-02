@@ -36,11 +36,14 @@ class KeywordExtractorService:
             return KeywordResponse(keywords=[])
 
     def _build_prompt(self, text: str, top_k: int) -> str:
+        # Wrap user input in delimiters to mitigate simple prompt injection
+        delimited_text = f"\"\"\"\n{text}\n\"\"\""
         return (
             "You are a keyword extraction assistant.\n"
+            "Analyze the text delimited by triple quotes for key topics.\n"
             'Return strict JSON with this shape: {"keywords":["keyword1","keyword2"]}.\n'
             f"Extract the top {top_k} most important keywords or short keyphrases.\n"
             "Prefer meaningful concepts over filler words.\n"
             "Do not include duplicates.\n"
-            f"Text:\n{text}"
+            f"Text:\n{delimited_text}"
         )

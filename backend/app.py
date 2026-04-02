@@ -17,11 +17,26 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI) -> AsyncGenerator:
     """Manages the application lifecycle: startup and shutdown."""
     logger.info("Initializing application resources")
+    settings = get_settings()
     
     # Initialize a shared AsyncClient for entire app lifecycle.
-    # This ensure connection pooling and optimized outgoing LLM requests.
     async with httpx.AsyncClient() as client:
         app.state.http_client = client
+        
+        # Initialize Core Services as singletons
+        from backend.services.ollama_client import OllamaClient
+        from backend.services.summarizer import SummarizerService
+        from backend.services.grammar import GrammarService
+        from backend.services.keyword_extractor import KeywordExtractorService
+        from backend.services.text_service import TextService
+        
+        ollama_client = OllamaClient(settings, client)
+        app.state.text_service = TextService(
+            summarizer=SummarizerService(settings, ollama_client),
+            keyword_extractor=KeywordExtractorService(settings, ollama_client),
+            grammar_checker=GrammarService(settings, ollama_client),
+        )
+        
         yield
     
     logger.info("Shutting down application resources")

@@ -7,7 +7,7 @@ SummaryLength = Literal["short", "medium", "long"]
 
 
 class TextPayload(BaseModel):
-    text: str = Field(..., min_length=20, description="Input text to process.")
+    text: str = Field(..., min_length=20, max_length=10000, description="Input text to process.")
 
     @field_validator("text")
     @classmethod
