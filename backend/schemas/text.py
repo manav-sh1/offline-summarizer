@@ -60,3 +60,9 @@ class GrammarResponse(BaseModel):
     issues: list[GrammarSuggestion]
     corrected_text: str
     provider: str
+
+
+class ParseResponse(BaseModel):
+    text: str
+    filename: str
+    page_count: int | None = None

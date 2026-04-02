@@ -1,3 +1,4 @@
+from typing import Tuple
 from backend.schemas.text import (
     GrammarRequest,
     GrammarResponse,
@@ -9,6 +10,7 @@ from backend.schemas.text import (
 from backend.services.grammar import GrammarService
 from backend.services.keyword_extractor import KeywordExtractorService
 from backend.services.summarizer import SummarizerService
+from backend.services.parser import DocumentParserService
 from logging_config import get_logger
 
 
@@ -21,10 +23,12 @@ class TextService:
         summarizer: SummarizerService,
         keyword_extractor: KeywordExtractorService,
         grammar_checker: GrammarService,
+        parser: DocumentParserService,
     ) -> None:
         self._summarizer = summarizer
         self._keyword_extractor = keyword_extractor
         self._grammar_checker = grammar_checker
+        self._parser = parser
 
     async def summarize(self, payload: SummarizeRequest) -> SummarizeResponse:
         logger.info("Dispatching summarize request")
@@ -37,3 +41,7 @@ class TextService:
     async def check_grammar(self, payload: GrammarRequest) -> GrammarResponse:
         logger.info("Dispatching grammar check request")
         return await self._grammar_checker.check(payload.text)
+
+    async def parse_document(self, file) -> Tuple[str, int]:
+        logger.info("Dispatching document parse request for %s", file.filename)
+        return await self._parser.parse_file(file)

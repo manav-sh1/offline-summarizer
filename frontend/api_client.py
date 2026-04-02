@@ -34,13 +34,24 @@ class TextForgeApiClient:
     def grammar(self, text: str) -> dict:
         return self._request("POST", "/text/grammar", json={"text": text})
 
-    def _request(self, method: str, path: str, json: dict | None = None) -> dict:
+    def parse(self, file_content: bytes, filename: str) -> dict:
+        files = {"file": (filename, file_content)}
+        return self._request("POST", "/text/parse", files=files)
+
+    def summarize_file(self, file_content: bytes, filename: str, length: str, query: str | None) -> dict:
+        files = {"file": (filename, file_content)}
+        params = {"length": length, "query": query}
+        return self._request("POST", "/text/summarize-file", files=files, params=params)
+
+    def _request(self, method: str, path: str, json: dict | None = None, files: dict | None = None, params: dict | None = None) -> dict:
         logger.info("Sending %s request to %s", method, path)
         try:
             response = self._session.request(
                 method=method,
                 url=f"{self._base_url}{path}",
                 json=json,
+                files=files,
+                params=params,
                 timeout=self._timeout,
             )
             response.raise_for_status()

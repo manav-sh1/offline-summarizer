@@ -29,12 +29,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         from backend.services.grammar import GrammarService
         from backend.services.keyword_extractor import KeywordExtractorService
         from backend.services.text_service import TextService
+        from backend.services.parser import DocumentParserService
         
         ollama_client = OllamaClient(settings, client)
         app.state.text_service = TextService(
             summarizer=SummarizerService(settings, ollama_client),
             keyword_extractor=KeywordExtractorService(settings, ollama_client),
             grammar_checker=GrammarService(settings, ollama_client),
+            parser=DocumentParserService(),
         )
         
         yield
