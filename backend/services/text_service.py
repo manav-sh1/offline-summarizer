@@ -26,14 +26,14 @@ class TextService:
         self._keyword_extractor = keyword_extractor
         self._grammar_checker = grammar_checker
 
-    def summarize(self, payload: SummarizeRequest) -> SummarizeResponse:
+    async def summarize(self, payload: SummarizeRequest) -> SummarizeResponse:
         logger.info("Dispatching summarize request")
-        return self._summarizer.summarize(payload.text, payload.length, payload.query)
+        return await self._summarizer.summarize(payload.text, payload.length, payload.query)
 
-    def extract_keywords(self, payload: KeywordRequest) -> KeywordResponse:
+    async def extract_keywords(self, payload: KeywordRequest) -> KeywordResponse:
         logger.info("Dispatching keyword extraction request")
-        return self._keyword_extractor.extract(payload.text, payload.top_k)
+        return await self._keyword_extractor.extract(payload.text, payload.top_k)
 
-    def check_grammar(self, payload: GrammarRequest) -> GrammarResponse:
+    async def check_grammar(self, payload: GrammarRequest) -> GrammarResponse:
         logger.info("Dispatching grammar check request")
-        return self._grammar_checker.check(payload.text)
+        return await self._grammar_checker.check(payload.text)

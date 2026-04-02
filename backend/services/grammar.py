@@ -1,28 +1,29 @@
 from __future__ import annotations
 
 import re
-
-import requests
+import httpx
+from async_lru import alru_cache
 
 from backend.schemas.text import GrammarResponse, GrammarSuggestion
 from backend.services.ollama_client import OllamaClient
 from config import Settings
 from logging_config import get_logger
 
-
 logger = get_logger(__name__)
 
 
 class GrammarService:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, ollama_client: OllamaClient) -> None:
         self._settings = settings
-        self._ollama = OllamaClient(settings)
+        self._ollama = ollama_client
         self._model = settings.ollama_grammar_model or settings.ollama_model
 
-    def check(self, text: str) -> GrammarResponse:
+    @alru_cache(maxsize=128)
+    async def check(self, text: str) -> GrammarResponse:
         logger.info("Grammar service invoked")
         try:
-            payload = self._ollama.parse_json(self._ollama.generate(self._build_prompt(text), model=self._model))
+            raw_response = await self._ollama.generate(self._build_prompt(text), model=self._model)
+            payload = self._ollama.parse_json(raw_response)
             raw_issues = payload.get("issues", [])
             issues = [self._to_suggestion(text, item) for item in raw_issues]
             logger.info("Grammar service completed with %s issues", len([issue for issue in issues if issue is not None]))
@@ -30,7 +31,7 @@ class GrammarService:
                 issues=[issue for issue in issues if issue is not None],
                 provider=f"ollama:{self._model}",
             )
-        except (requests.RequestException, ValueError, TypeError, KeyError) as exc:
+        except (httpx.HTTPError, ValueError, TypeError, KeyError) as exc:
             logger.warning("Grammar check failed, returning unavailable provider: %s", exc)
             return GrammarResponse(issues=[], provider="unavailable")
 

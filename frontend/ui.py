@@ -11,13 +11,19 @@ from logging_config import get_logger
 logger = get_logger(__name__)
 
 
+@st.cache_resource
+def get_api_client() -> TextForgeApiClient:
+    """Creates and caches a persistent API client with connection pooling."""
+    return TextForgeApiClient()
+
+
 def main() -> None:
     logger.info("Rendering Streamlit UI")
     st.set_page_config(page_title="TextForge", layout="wide")
     render_sidebar()
     render_header()
 
-    client = TextForgeApiClient()
+    client = get_api_client()
     _render_health_banner(client)
 
     text = st.text_area("Input text", height=280, placeholder="Paste the text you want to process...")
@@ -95,4 +101,5 @@ def _require_text(text: str) -> None:
         st.stop()
 
 
-main()
+if __name__ == "__main__":
+    main()
