@@ -28,16 +28,26 @@ class SummarizerService:
         }
 
     @alru_cache(maxsize=128)
-    async def summarize(self, text: str, length: str, query: str | None = None) -> SummarizeResponse:
-        """Summarizes text asynchronously, using an LRU cache to reduce latency for repeated requests."""
-        logger.info("Summarizer service invoked with length=%s query_present=%s", length, bool(query))
+    async def summarize(
+        self, text: str, length: str, query: str | None = None
+    ) -> SummarizeResponse:
+        """
+        Summarizes text asynchronously using an LRU cache for repeated requests.
+        """
+        logger.info(
+            "Summarizer service invoked with length=%s query_present=%s",
+            length, bool(query)
+        )
         try:
             summary = await self._summarize_with_ollama(text, length, query)
             logger.info("Summarizer completed with Ollama model=%s", self._model)
             return SummarizeResponse(summary=summary, provider=f"ollama:{self._model}")
         except (httpx.HTTPError, ValueError) as exc:
-            logger.warning("Ollama summarize failed, falling back to extractive summary: %s", exc)
-            return SummarizeResponse(summary=self._extractive_summary(text, length), provider="extractive-fallback")
+            logger.warning("Ollama summarize failed, falling back to extractive: %s", exc)
+            return SummarizeResponse(
+                summary=self._extractive_summary(text, length),
+                provider="extractive-fallback"
+            )
 
     async def _summarize_with_ollama(self, text: str, length: str, query: str | None) -> str:
         """Private method to interface with the Ollama client asynchronously."""
@@ -68,6 +78,10 @@ class SummarizerService:
     def _extractive_summary(self, text: str, length: str) -> str:
         """Deterministic fallback for summarize when the LLM is unreachable."""
         logger.info("Generating extractive fallback summary")
-        sentences = [part.strip() for part in self._sentence_pattern.split(text.strip()) if part.strip()]
+        sentences = [
+            part.strip() 
+            for part in self._sentence_pattern.split(text.strip()) 
+            if part.strip()
+        ]
         sentence_count = {"short": 2, "medium": 4, "long": 6}[length]
         return " ".join(sentences[:sentence_count]) if sentences else text.strip()

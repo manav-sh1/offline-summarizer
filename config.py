@@ -10,13 +10,25 @@ class Settings(BaseSettings):
     api_host: str = Field(default="127.0.0.1", alias="API_HOST")
     api_port: int = Field(default=5000, alias="API_PORT")
     api_base_path: str = Field(default="/api/v1", alias="API_BASE_PATH")
-    ollama_base_url: str = Field(default="http://127.0.0.1:11434", alias="OLLAMA_BASE_URL")
+    ollama_base_url: str = Field(
+        default="http://127.0.0.1:11434", alias="OLLAMA_BASE_URL"
+    )
     ollama_model: str = Field(default="qwen2.5:1.5b", alias="OLLAMA_MODEL")
-    ollama_summary_model: str | None = Field(default=None, alias="OLLAMA_SUMMARY_MODEL")
-    ollama_keywords_model: str | None = Field(default=None, alias="OLLAMA_KEYWORDS_MODEL")
-    ollama_grammar_model: str | None = Field(default=None, alias="OLLAMA_GRAMMAR_MODEL")
-    ollama_timeout_seconds: int = Field(default=90, alias="OLLAMA_TIMEOUT_SECONDS")
-    frontend_api_url: str = Field(default="http://127.0.0.1:5000/api/v1", alias="FRONTEND_API_URL")
+    ollama_summary_model: str | None = Field(
+        default=None, alias="OLLAMA_SUMMARY_MODEL"
+    )
+    ollama_keywords_model: str | None = Field(
+        default=None, alias="OLLAMA_KEYWORDS_MODEL"
+    )
+    ollama_grammar_model: str | None = Field(
+        default=None, alias="OLLAMA_GRAMMAR_MODEL"
+    )
+    ollama_timeout_seconds: int = Field(
+        default=90, alias="OLLAMA_TIMEOUT_SECONDS"
+    )
+    frontend_api_url: str = Field(
+        default="http://127.0.0.1:5000/api/v1", alias="FRONTEND_API_URL"
+    )
     request_timeout_seconds: int = Field(default=120, alias="REQUEST_TIMEOUT_SECONDS")
     max_keywords: int = Field(default=10, alias="MAX_KEYWORDS")
 

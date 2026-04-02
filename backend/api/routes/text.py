@@ -21,7 +21,10 @@ async def summarize_text(
     payload: SummarizeRequest,
     service: TextService = Depends(get_text_service),
 ) -> SummarizeResponse:
-    logger.info("Summarize endpoint called with length=%s query_present=%s", payload.length, bool(payload.query))
+    logger.info(
+        "Summarize endpoint: length=%s queries=%s", 
+        payload.length, bool(payload.query)
+    )
     return await service.summarize(payload)
 
 

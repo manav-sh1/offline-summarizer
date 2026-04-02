@@ -26,10 +26,18 @@ def main() -> None:
     client = get_api_client()
     _render_health_banner(client)
 
-    text = st.text_area("Input text", height=280, placeholder="Paste the text you want to process...")
+    text = st.text_area(
+        "Input text", 
+        height=280, 
+        placeholder="Paste the text you want to process..."
+    )
     col1, col2 = st.columns(2)
     with col1:
-        length = st.selectbox("Summary length", options=["short", "medium", "long"], index=1)
+        length = st.selectbox(
+            "Summary length", 
+            options=["short", "medium", "long"], 
+            index=1
+        )
     with col2:
         top_k = st.slider("Keyword count", min_value=3, max_value=10, value=8)
     query = st.text_input("Focus query", placeholder="Optional: e.g. benefits of AI")
@@ -58,7 +66,10 @@ def main() -> None:
         _require_text(text)
         try:
             response = client.keywords(text=text, top_k=top_k)
-            render_result("Keywords", ", ".join(response["keywords"]) or "No keywords found.")
+            render_result(
+                "Keywords", 
+                ", ".join(response["keywords"]) or "No keywords found."
+            )
         except requests.RequestException as exc:
             logger.warning("Keywords request failed: %s", exc)
             st.error(f"Unable to extract keywords: {exc}")
@@ -80,7 +91,7 @@ def main() -> None:
                         st.markdown(
                             f"- **{issue['message']}**\n"
                             f"Context: `{issue['context']}`\n"
-                            f"Suggestions: {', '.join(issue['replacements']) or 'No suggestions'}"
+                            f"Suggestions: {', '.join(issue['replacements']) or 'N/A'}"
                         )
             elif not has_changes:
                 st.success("No grammar issues detected!")

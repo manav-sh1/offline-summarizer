@@ -12,6 +12,8 @@ logger = get_logger(__name__)
 
 
 class KeywordExtractorService:
+    """Service for extracting key topics and keywords from text using an LLM."""
+
     def __init__(self, settings: Settings, ollama_client: OllamaClient) -> None:
         self._settings = settings
         self._ollama = ollama_client
@@ -19,6 +21,16 @@ class KeywordExtractorService:
 
     @alru_cache(maxsize=128)
     async def extract(self, text: str, top_k: int) -> KeywordResponse:
+        """
+        Extracts key phrases from the input text.
+        
+        Args:
+            text: The source text.
+            top_k: Number of keywords to extract.
+            
+        Returns:
+            A KeywordResponse containing a list of strings.
+        """
         keyword_limit = min(top_k, self._settings.max_keywords)
         logger.info("Keyword extractor service invoked with requested_top_k=%s effective_top_k=%s", top_k, keyword_limit)
         try:
@@ -36,6 +48,7 @@ class KeywordExtractorService:
             return KeywordResponse(keywords=[])
 
     def _build_prompt(self, text: str, top_k: int) -> str:
+        """Constructs the prompt for the keyword extraction task."""
         # Wrap user input in delimiters to mitigate simple prompt injection
         delimited_text = f"\"\"\"\n{text}\n\"\"\""
         return (

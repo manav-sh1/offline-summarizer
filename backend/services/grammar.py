@@ -13,6 +13,8 @@ logger = get_logger(__name__)
 
 
 class GrammarService:
+    """Service for checking grammar and spelling using an LLM backend."""
+
     def __init__(self, settings: Settings, ollama_client: OllamaClient) -> None:
         self._settings = settings
         self._ollama = ollama_client
@@ -20,6 +22,15 @@ class GrammarService:
 
     @alru_cache(maxsize=128)
     async def check(self, text: str) -> GrammarResponse:
+        """
+        Analyzes the provided text for grammar and spelling issues.
+        
+        Args:
+            text: The input text to check.
+            
+        Returns:
+            A GrammarResponse containing the highlighted issues and a corrected version.
+        """
         logger.info("Grammar service invoked with text length=%s", len(text))
         try:
             raw_response = await self._ollama.generate(self._build_prompt(text), model=self._model)
@@ -27,7 +38,10 @@ class GrammarService:
             
             # Extract and filter individual issues
             raw_issues = payload.get("issues", [])
-            issues = [issue for item in raw_issues if (issue := self._to_suggestion(text, item)) is not None]
+            issues = [
+                issue for item in raw_issues 
+                if (issue := self._to_suggestion(text, item)) is not None
+            ]
             
             # Extract fully corrected text, fallback to original if missing
             corrected_text = str(payload.get("corrected_text", text)).strip()
@@ -39,10 +53,11 @@ class GrammarService:
                 provider=f"ollama:{self._model}",
             )
         except (httpx.HTTPError, ValueError, TypeError, KeyError) as exc:
-            logger.warning("Grammar check failed, returning original text as fallback: %s", exc)
+            logger.warning("Grammar check failed, falling back to original: %s", exc)
             return GrammarResponse(issues=[], corrected_text=text, provider="unavailable")
 
     def _build_prompt(self, text: str) -> str:
+        """Constructs the prompt for the grammar check task."""
         # Wrap user input in delimiters to mitigate simple prompt injection
         delimited_text = f"\"\"\"\n{text}\n\"\"\""
         return (
@@ -64,6 +79,7 @@ class GrammarService:
         )
 
     def _to_suggestion(self, source_text: str, item: dict) -> GrammarSuggestion | None:
+        """Parses a raw issue dictionary into a GrammarSuggestion object with accurate offsets."""
         error_text = str(item.get("error_text", "")).strip()
         context = str(item.get("context", "")).strip()
         if not error_text:
@@ -84,7 +100,10 @@ class GrammarService:
         if start_index < 0:
             match = re.search(re.escape(error_text), source_text)
             if match is None:
-                logger.debug("Skipping grammar issue because source match was not found for: %s", error_text)
+                logger.debug(
+                    "Skipping grammar match failure for: %s", 
+                    error_text
+                )
                 return None
             start_index = match.start()
 
@@ -92,7 +111,9 @@ class GrammarService:
         replacements = [str(value).strip() for value in item.get("replacements", []) if str(value).strip()][:5]
         
         # Ensure context is present for the UI to display
-        display_context = context or source_text[max(0, start_index - 30): start_index + len(error_text) + 30]
+        display_context = context or source_text[
+            max(0, start_index - 30): start_index + len(error_text) + 30
+        ]
 
         return GrammarSuggestion(
             message=message,
