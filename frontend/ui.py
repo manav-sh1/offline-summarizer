@@ -68,16 +68,21 @@ def main() -> None:
         _require_text(text)
         try:
             response = client.grammar(text=text)
+            
+            # Display corrected text prominently
+            render_result("Corrected Text", response["corrected_text"])
+            
             if response["issues"]:
-                st.subheader("Grammar Issues")
-                for issue in response["issues"]:
-                    st.markdown(
-                        f"- **{issue['message']}**\n"
-                        f"Context: `{issue['context']}`\n"
-                        f"Suggestions: {', '.join(issue['replacements']) or 'No suggestions'}"
-                    )
+                with st.expander("Detailed Issues"):
+                    for issue in response["issues"]:
+                        st.markdown(
+                            f"- **{issue['message']}**\n"
+                            f"Context: `{issue['context']}`\n"
+                            f"Suggestions: {', '.join(issue['replacements']) or 'No suggestions'}"
+                        )
             else:
-                render_result("Grammar", "No grammar issues detected.")
+                st.success("No grammar issues detected!")
+                
             st.caption(f"Provider: {response['provider']}")
         except requests.RequestException as exc:
             logger.warning("Grammar request failed: %s", exc)

@@ -20,31 +20,44 @@ class GrammarService:
 
     @alru_cache(maxsize=128)
     async def check(self, text: str) -> GrammarResponse:
-        logger.info("Grammar service invoked")
+        logger.info("Grammar service invoked with text length=%s", len(text))
         try:
             raw_response = await self._ollama.generate(self._build_prompt(text), model=self._model)
             payload = self._ollama.parse_json(raw_response)
+            
+            # Extract and filter individual issues
             raw_issues = payload.get("issues", [])
-            issues = [self._to_suggestion(text, item) for item in raw_issues]
-            logger.info("Grammar service completed with %s issues", len([issue for issue in issues if issue is not None]))
+            issues = [issue for item in raw_issues if (issue := self._to_suggestion(text, item)) is not None]
+            
+            # Extract fully corrected text, fallback to original if missing
+            corrected_text = str(payload.get("corrected_text", text)).strip()
+            
+            logger.info("Grammar check completed with %s issues highlighted", len(issues))
             return GrammarResponse(
-                issues=[issue for issue in issues if issue is not None],
+                issues=issues,
+                corrected_text=corrected_text or text,
                 provider=f"ollama:{self._model}",
             )
         except (httpx.HTTPError, ValueError, TypeError, KeyError) as exc:
-            logger.warning("Grammar check failed, returning unavailable provider: %s", exc)
-            return GrammarResponse(issues=[], provider="unavailable")
+            logger.warning("Grammar check failed, returning original text as fallback: %s", exc)
+            return GrammarResponse(issues=[], corrected_text=text, provider="unavailable")
 
     def _build_prompt(self, text: str) -> str:
         return (
-            "You are a grammar analysis assistant.\n"
-            "Return strict JSON with this shape: "
-            '{"issues":[{"message":"...",'
-            '"replacements":["..."],'
-            '"error_text":"...",'
-            '"context":"..."}]}.\n'
+            "You are a grammar and spell-checking assistant.\n"
+            "Analyze the provided text for errors and provide a fully corrected version.\n"
+            "Return strict JSON with this shape:\n"
+            "{\n"
+            '  "corrected_text": "<fully_corrected_para>",\n'
+            '  "issues": [{\n'
+            '    "message": "<short_description_of_error>",\n'
+            '    "replacements": ["<suggestion1>", "<suggestion2>"],\n'
+            '    "error_text": "<exact_original_error_from_text>",\n'
+            '    "context": "<short_snippet_with_error>"\n'
+            '  }]\n'
+            "}\n"
             "Only include real grammar, spelling, punctuation, or usage issues.\n"
-            "Use short messages and up to 5 replacements per issue.\n"
+            "Ensure the corrected_text is consistent with the suggestions in the issues array.\n"
             f"Text:\n{text}"
         )
 

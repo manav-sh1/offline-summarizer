@@ -58,4 +58,5 @@ class GrammarSuggestion(BaseModel):
 
 class GrammarResponse(BaseModel):
     issues: list[GrammarSuggestion]
+    corrected_text: str
     provider: str
