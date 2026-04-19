@@ -45,7 +45,7 @@ Before you begin, ensure your system meets the following requirements:
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/yourusername/offline-summarizer.git
+git clone https://github.com/manav-sh1/offline-summarizer.git
 cd offline-summarizer
 ```
 
