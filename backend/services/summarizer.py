@@ -27,7 +27,7 @@ class SummarizerService:
             "long": "5-8 sentences",
         }
 
-    @alru_cache(maxsize=128)
+    @alru_cache(maxsize=64, ttl=600)
     async def summarize(
         self, text: str, length: str, query: str | None = None
     ) -> SummarizeResponse:

@@ -20,7 +20,7 @@ class GrammarService:
         self._ollama = ollama_client
         self._model = settings.ollama_grammar_model or settings.ollama_model
 
-    @alru_cache(maxsize=128)
+    @alru_cache(maxsize=64, ttl=600)
     async def _check_chunk(self, chunk: str) -> dict:
         """Internal method to check an individual chunk with its own cache."""
         try:
@@ -51,7 +51,7 @@ class GrammarService:
             
             raw_response = await self._ollama.generate(prompt, model=self._model)
             return self._ollama.parse_json(raw_response)
-        except Exception as exc:
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
             logger.error("Chunk grammar check failed: %s", exc)
             return {"corrected_text": chunk, "issues": []}
 

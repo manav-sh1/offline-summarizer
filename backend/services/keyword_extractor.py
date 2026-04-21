@@ -19,7 +19,7 @@ class KeywordExtractorService:
         self._ollama = ollama_client
         self._model = settings.ollama_keywords_model or settings.ollama_model
 
-    @alru_cache(maxsize=128)
+    @alru_cache(maxsize=64, ttl=600)
     async def extract(self, text: str, top_k: int) -> KeywordResponse:
         """
         Extracts key phrases from the input text.
