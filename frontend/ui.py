@@ -52,7 +52,7 @@ def main() -> None:
     # Subtle health check
     try:
         client.health()
-    except:
+    except requests.RequestException:
         st.error("Backend Offline: Ensure the FastAPI server is running for analysis.")
 
     # 3. Session State Initialization

@@ -61,9 +61,11 @@ class DocumentParserService:
                 )
             
             return text, estimated_pages
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.error(f"Error parsing DOCX: {str(e)}")
-            raise HTTPException(status_code=400, detail=f"Failed to parse DOCX: {str(e)}")
+            logger.error("Error parsing DOCX: %s", e)
+            raise HTTPException(status_code=400, detail=f"Failed to parse DOCX: {e}")
 
     async def parse_file(self, file: UploadFile) -> Tuple[str, int]:
         """Generic file parser dispatcher."""
