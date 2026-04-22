@@ -182,8 +182,6 @@ def _render_grammar_result(result):
                 for issue in result["body"]["issues"]:
                     st.markdown(f"**{issue['message']}**")
                     st.caption(f"Context: `{issue['context']}` | Suggested: {', '.join(issue['replacements']) or 'Check syntax'}")
-        else:
-            st.info("No grammar issues found. Great job!")
         
         st.caption(f"Provider: {result['provider']}")
 
